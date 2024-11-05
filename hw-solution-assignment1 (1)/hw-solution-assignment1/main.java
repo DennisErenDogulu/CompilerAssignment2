@@ -25,7 +25,7 @@ public class main {
 	// open the input file
 	CharStream input = CharStreams.fromFileName(filename);
 	    //new ANTLRFileStream (filename); // depricated
-	
+	//t
 	// create a lexer/scanner
 	hwLexer lex = new hwLexer(input);
 	
