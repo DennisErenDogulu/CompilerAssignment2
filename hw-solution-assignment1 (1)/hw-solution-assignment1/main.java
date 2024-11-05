@@ -25,7 +25,7 @@ public class main {
 	// open the input file
 	CharStream input = CharStreams.fromFileName(filename);
 	    //new ANTLRFileStream (filename); // depricated
-	//t
+
 	// create a lexer/scanner
 	hwLexer lex = new hwLexer(input);
 	
@@ -48,6 +48,11 @@ public class main {
 	   AST.java). */
 	
 	Circuit p = (Circuit) new AstMaker().visit(parseTree);
+
+
+		// create new environment and run
+		Environment env = new Environment(p.definitions);
+		p.runSimulator(env);
 
 	/* For the second assignment you need to extend the classes of
 	    AST.java with some methods that correspond to running a

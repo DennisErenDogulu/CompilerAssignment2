@@ -17,24 +17,38 @@ public abstract class AST{
    (Negation). Moreover, an expression can be using any of the
    functions defined in the definitions. */
 
-abstract class Expr extends AST{}
+abstract class Expr extends AST{
+    public abstract Boolean eval(Environment env);
+}
 
 class Conjunction extends Expr{
     // Example: Signal1 * Signal2 
     Expr e1,e2;
     Conjunction(Expr e1,Expr e2){this.e1=e1; this.e2=e2;}
+
+    public Boolean eval(Environment env) {
+        return e1.eval(env) && e2.eval(env);
+    }
 }
 
 class Disjunction extends Expr{
     // Example: Signal1 + Signal2 
     Expr e1,e2;
     Disjunction(Expr e1,Expr e2){this.e1=e1; this.e2=e2;}
+
+    public Boolean eval(Environment env) {
+        return e1.eval(env) || e2.eval(env);
+    }
 }
 
 class Negation extends Expr{
     // Example: /Signal
     Expr e;
     Negation(Expr e){this.e=e;}
+
+    public Boolean eval(Environment env) {
+        return !e.eval(env);
+    }
 }
 
 class UseDef extends Expr{
@@ -45,11 +59,23 @@ class UseDef extends Expr{
     UseDef(String f, List<Expr> args){
 	this.f=f; this.args=args;
     }
+
+    public Boolean eval(Environment env) {
+        error("Use of function " + f + " not yet implemented");
+        return false; // Placeholder for Task 2
+    }
 }
 
 class Signal extends Expr{
     String varname; // a signal is just identified by a name 
     Signal(String varname){this.varname=varname;}
+
+    public Boolean eval(Environment env) {
+        if (!env.hasVariable(varname)) {
+            error("Undefined signal: " + varname);
+        }
+        return env.getVariable(varname);
+    }
 }
 
 class Def extends AST{
@@ -71,6 +97,11 @@ class Update extends AST{
     String name;  // Signal being updated, e.g. "Signal1"
     Expr e;  // The value it receives, e.g., "/Signal2"
     Update(String name, Expr e){this.e=e; this.name=name;}
+
+    public void eval(Environment env) {
+        Boolean value = e.eval(env);
+        env.setVariable(name, value);
+    }
 }
 
 /* A Trace is a signal and an array of Booleans, for instance each
@@ -132,5 +163,67 @@ class Circuit extends AST{
 	this.definitions=definitions;
 	this.updates=updates;
 	this.siminputs=siminputs;
+    }
+
+    public void latchesInit(Environment env) {
+        for (String latch : latches) {
+            env.setVariable(latch + "'", false); // Initialize latch outputs to 0
+        }
+    }
+
+    public void latchesUpdate(Environment env) {
+        for (String latch : latches) {
+            Boolean inputVal = env.getVariable(latch);
+            env.setVariable(latch + "'", inputVal); // Update latch output
+        }
+    }
+
+    public void initialize(Environment env) {
+        // Initialize input signals
+        for (Trace inputTrace : siminputs) {
+            if (inputTrace.values.length == 0) {
+                error("Simulation input array for " + inputTrace.signal + " is empty");
+            }
+            env.setVariable(inputTrace.signal, inputTrace.values[0]);
+        }
+
+        // Initialize latches
+        latchesInit(env);
+
+        // Evaluate all updates to initialize other signals
+        for (Update update : updates) {
+            update.eval(env);
+        }
+
+        // Print environment state
+        System.out.println(env);
+    }
+
+    public void nextCycle(Environment env, int cycle) {
+        // Update inputs for the current cycle
+        for (Trace inputTrace : siminputs) {
+            if (cycle >= inputTrace.values.length) {
+                error("Simulation input array for " + inputTrace.signal + " does not have entry for cycle " + cycle);
+            }
+            env.setVariable(inputTrace.signal, inputTrace.values[cycle]);
+        }
+
+        // Update latch outputs
+        latchesUpdate(env);
+
+        // Evaluate all updates to update other signals
+        for (Update update : updates) {
+            update.eval(env);
+        }
+
+        // Print environment state
+        System.out.println(env);
+    }
+
+    public void runSimulator(Environment env) {
+        initialize(env);
+        for (int i = 1; i < simlength; i++) {
+            nextCycle(env, i);
+        }
     }
 }
