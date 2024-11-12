@@ -1,3 +1,4 @@
+import java.sql.SQLOutput;
 import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.List;
@@ -8,7 +9,7 @@ public abstract class AST{
 	System.err.println(msg);
 	System.exit(-1);
     }
-};
+}
 
 /* Expressions are similar to arithmetic expressions in the impl
    language: the atomic expressions are just Signal (similar to
@@ -153,47 +154,48 @@ class Trace extends AST{
    traces should also finally have the length simlength.
 */
 
-class Circuit extends AST{
-    String name;  
-    List<String> inputs; 
+class Circuit extends AST {
+    String name;
+    List<String> inputs;
     List<String> outputs;
-    List<String>  latches;
+    List<String> latches;
     List<Def> definitions;
     List<Update> updates;
-    List<Trace>  siminputs;
-    List<Trace>  simoutputs;
+    List<Trace> siminputs;
+    List<Trace> simoutputs;
     int simlength;
+
     Circuit(String name,
-	    List<String> inputs,
-	    List<String> outputs,
-	    List<String>  latches,
-	    List<Def> definitions,
-	    List<Update> updates,
-	    List<Trace>  siminputs){
-	this.name=name;
-	this.inputs=inputs;
-	this.outputs=outputs;
-	this.latches=latches;
-	this.definitions=definitions;
-	this.updates=updates;
-	this.siminputs=siminputs;
+            List<String> inputs,
+            List<String> outputs,
+            List<String> latches,
+            List<Def> definitions,
+            List<Update> updates,
+            List<Trace> siminputs) {
+        this.name = name;
+        this.inputs = inputs;
+        this.outputs = outputs;
+        this.latches = latches;
+        this.definitions = definitions;
+        this.updates = updates;
+        this.siminputs = siminputs;
     }
 
     public void latchesInit(Environment env) {
         for (String latch : latches) {
-            env.setVariable(latch + "'", false); // Initialize latch outputs to 0
+            env.setVariable(latch + "'", false);
         }
     }
 
     public void latchesUpdate(Environment env) {
         for (String latch : latches) {
             Boolean inputVal = env.getVariable(latch);
-            env.setVariable(latch + "'", inputVal); // Update latch output
+            env.setVariable(latch + "'", inputVal);
         }
     }
 
     public void initialize(Environment env) {
-        // Initialize input signals
+
         for (Trace inputTrace : siminputs) {
             if (inputTrace.values.length == 0) {
                 error("Simulation input array for " + inputTrace.signal + " is empty");
@@ -201,20 +203,14 @@ class Circuit extends AST{
             env.setVariable(inputTrace.signal, inputTrace.values[0]);
         }
 
-        // Initialize latches
         latchesInit(env);
 
-        // Evaluate all updates to initialize other signals
         for (Update update : updates) {
             update.eval(env);
         }
-
-        // Print environment state
-        System.out.println(env);
     }
 
     public void nextCycle(Environment env, int cycle) {
-        // Update inputs for the current cycle
         for (Trace inputTrace : siminputs) {
             if (cycle >= inputTrace.values.length) {
                 error("Simulation input array for " + inputTrace.signal + " does not have entry for cycle " + cycle);
@@ -222,22 +218,56 @@ class Circuit extends AST{
             env.setVariable(inputTrace.signal, inputTrace.values[cycle]);
         }
 
-        // Update latch outputs
         latchesUpdate(env);
 
-        // Evaluate all updates to update other signals
+
         for (Update update : updates) {
             update.eval(env);
         }
+    }
 
-        // Print environment state
-        System.out.println(env);
+    public void initializeSimOutputs() {
+        simoutputs = new ArrayList<>();
+        for (String input : inputs) {
+            simoutputs.add(new Trace(input, new Boolean[simlength]));
+        }
+        for (String output : outputs) {
+            simoutputs.add(new Trace(output, new Boolean[simlength]));
+        }
+    }
+
+    private void saveCurrentStateToTraces(Environment env, int cycle) {
+        for (Trace trace : simoutputs) {
+            trace.values[cycle] = env.getVariable(trace.signal);
+        }
+    }
+
+    public void printTraces() {
+        for (Trace trace : simoutputs) {
+            StringBuilder outputLine = new StringBuilder();
+            for (Boolean value : trace.values) {
+                outputLine.append(value ? "1" : "0");
+            }
+            outputLine.append(" ").append(trace.signal).append("<br>");
+            System.out.print(outputLine.toString());
+
+        }
     }
 
     public void runSimulator(Environment env) {
+        if (siminputs.isEmpty() || siminputs.get(0).values.length == 0) {
+            error("No simulation inputs provided or input traces are empty.");
+        }
+        simlength = siminputs.get(0).values.length;
+
+        initializeSimOutputs();
         initialize(env);
+        saveCurrentStateToTraces(env, 0);
+
         for (int i = 1; i < simlength; i++) {
             nextCycle(env, i);
+            saveCurrentStateToTraces(env, i);
         }
+        printTraces();
     }
 }
