@@ -53,16 +53,30 @@ class Negation extends Expr{
 
 class UseDef extends Expr{
     // Using any of the functions defined by "def"
-    // e.g. xor(Signal1,/Signal2) 
+    // e.g. xor(Signal1,/Signal2)
+
     String f;  // the name of the function, e.g. "xor" 
     List<Expr> args;  // arguments, e.g. [Signal1, /Signal2]
+
+
     UseDef(String f, List<Expr> args){
-	this.f=f; this.args=args;
+	this.f=f;
+    this.args=args;
+
     }
 
     public Boolean eval(Environment env) {
-        error("Use of function " + f + " not yet implemented");
-        return false; // Placeholder for Task 2
+        Def def = env.getDef(f);
+
+        Environment environment = new Environment(env);
+
+        for (int i = 0; i < args.size(); i++) {
+            String param = def.args.get(i);
+            Boolean argValue = args.get(i).eval(env);
+            environment.setVariable(param, argValue);
+        }
+        return def.e.eval(environment);
+
     }
 }
 
