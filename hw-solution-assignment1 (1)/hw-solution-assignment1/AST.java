@@ -134,6 +134,15 @@ class Trace extends AST{
 	this.signal=signal;
 	this.values=values;
     }
+
+    public String toString() {
+        StringBuilder outputLine = new StringBuilder();
+        for (Boolean value : values) {
+            outputLine.append(value ? "1" : "0");
+        }
+        outputLine.append(" ").append(signal).append("<br>");
+        return outputLine.toString();
+    }
 }
 
 /* The main data structure of this simulator: the entire circuit with
@@ -208,14 +217,15 @@ class Circuit extends AST {
         for (Update update : updates) {
             update.eval(env);
         }
+        // System.out.println(env.toString()); #### Commented out to adhere to task 3, to only print signals.
     }
 
-    public void nextCycle(Environment env, int cycle) {
+    public void nextCycle(Environment env, int i) {
         for (Trace inputTrace : siminputs) {
-            if (cycle >= inputTrace.values.length) {
-                error("Simulation input array for " + inputTrace.signal + " does not have entry for cycle " + cycle);
+            if (i >= inputTrace.values.length) {
+                error("Simulation input array for " + inputTrace.signal + " does not have entry for cycle " + i);
             }
-            env.setVariable(inputTrace.signal, inputTrace.values[cycle]);
+            env.setVariable(inputTrace.signal, inputTrace.values[i]);
         }
 
         latchesUpdate(env);
@@ -224,6 +234,7 @@ class Circuit extends AST {
         for (Update update : updates) {
             update.eval(env);
         }
+        // System.out.println(env.toString()); #### Commented out to adhere to task 3, to only print signals.
     }
 
     public void initializeSimOutputs() {
@@ -244,13 +255,7 @@ class Circuit extends AST {
 
     public void printTraces() {
         for (Trace trace : simoutputs) {
-            StringBuilder outputLine = new StringBuilder();
-            for (Boolean value : trace.values) {
-                outputLine.append(value ? "1" : "0");
-            }
-            outputLine.append(" ").append(trace.signal).append("<br>");
-            System.out.print(outputLine.toString());
-
+            System.out.println(trace.toString());
         }
     }
 
@@ -264,9 +269,9 @@ class Circuit extends AST {
         initialize(env);
         saveCurrentStateToTraces(env, 0);
 
-        for (int i = 1; i < simlength; i++) {
-            nextCycle(env, i);
-            saveCurrentStateToTraces(env, i);
+        for (int n = 1; n < simlength; n++) {
+            nextCycle(env, n);
+            saveCurrentStateToTraces(env, n);
         }
         printTraces();
     }
